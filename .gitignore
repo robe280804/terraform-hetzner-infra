@@ -1,0 +1,57 @@
+# Terraform / OpenTofu
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfplan
+tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Variabili con segreti (i file *.tfvars di esempio vanno chiamati *.tfvars.example)
+*.auto.tfvars
+secrets.tfvars
+*.secret.tfvars
+terraform.tfvars
+
+# NON ignorare il lock file dei provider: va committato
+!.terraform.lock.hcl
+
+# Chiavi e credenziali
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+*.age
+age-key*.txt
+.env
+.env.*
+!.env.example
+
+# SOPS: ignorare i file in chiaro, committare solo quelli cifrati (*.enc.*)
+*.dec.*
+
+# Ansible
+*.retry
+.vault_pass*
+
+# Python / pre-commit / tool locali
+__pycache__/
+.venv/
+.pre-commit-cache/
+.tflint.d/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Docs
+docs/PLAN.md
