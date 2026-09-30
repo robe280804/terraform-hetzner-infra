@@ -1,0 +1,54 @@
+#cloud-config
+# Hardening base: gira solo al primo avvio del server.
+
+users:
+  - name: ${admin_user}
+    groups: [sudo]
+    shell: /bin/bash
+    # Password bloccata: sudo senza password, accesso solo con chiave SSH.
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys:
+%{ for key in admin_ssh_public_keys ~}
+      - ${key}
+%{ endfor ~}
+
+disable_root: true
+ssh_pwauth: false
+
+package_update: true
+package_upgrade: true
+packages:
+  - unattended-upgrades
+  - fail2ban
+  - ufw
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/10-hardening.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      AllowUsers ${admin_user}
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [sshd]
+      enabled = true
+      backend = systemd
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+# ufw come seconda barriera, dietro al firewall Hetzner.
+runcmd:
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+%{ if open_http ~}
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+%{ endif ~}
+  - ufw --force enable
+  - systemctl enable --now fail2ban
+  - systemctl restart ssh
