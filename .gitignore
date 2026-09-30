@@ -13,10 +13,12 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Variabili con segreti (i file *.tfvars di esempio vanno chiamati *.tfvars.example)
+# La config degli ambienti (envs/*/<env>.tfvars) va committata e revisionata via PR.
+# Si ignorano solo i file con segreti o override locali.
 *.auto.tfvars
-secrets.tfvars
+*.auto.tfvars.json
 *.secret.tfvars
+secrets.tfvars
 terraform.tfvars
 
 # NON ignorare il lock file dei provider: va committato
