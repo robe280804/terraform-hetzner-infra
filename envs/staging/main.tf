@@ -24,6 +24,15 @@ resource "hcloud_ssh_key" "admin" {
   }
 }
 
+module "network" {
+  source = "../../modules/network"
+
+  environment     = local.environment
+  ip_range        = var.network.ip_range
+  subnet_ip_range = var.network.subnet_ip_range
+  network_zone    = var.network.network_zone
+}
+
 module "server" {
   source   = "../../modules/server"
   for_each = var.servers
@@ -41,6 +50,25 @@ module "server" {
 
   allowed_ssh_cidrs  = each.value.allowed_ssh_cidrs
   allowed_http_cidrs = each.value.allowed_http_cidrs
+
+  network = {
+    subnet_id = module.network.subnet_id
+    ip        = each.value.private_ip
+  }
+
+  protection = false
+}
+
+# Un volume dati per ogni server con volume_size > 0.
+module "volume" {
+  source   = "../../modules/volume"
+  for_each = { for k, s in var.servers : k => s if s.volume_size > 0 }
+
+  name        = each.key
+  environment = local.environment
+  size        = each.value.volume_size
+  location    = each.value.location
+  server_id   = module.server[each.key].id
 
   protection = false
 }

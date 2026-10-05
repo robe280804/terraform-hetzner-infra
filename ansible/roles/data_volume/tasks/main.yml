@@ -1,0 +1,44 @@
+- name: Verifica che il device del volume esista
+  ansible.builtin.stat:
+    path: "{{ data_volume_device }}"
+  register: data_volume_stat
+
+- name: Volume collegato al server
+  ansible.builtin.assert:
+    that: data_volume_stat.stat.exists
+    fail_msg: >-
+      {{ data_volume_device }} non esiste: il volume non è collegato al server
+      (controllare hcloud_volume_attachment con terraform plan).
+
+# Hetzner crea il filesystem alla creazione del volume: questo task non
+# formatta mai un device che ne ha già uno (manca `force`), e allarga il
+# filesystem se il volume è stato ingrandito da Terraform.
+- name: Filesystem del volume (resize se ingrandito)
+  community.general.filesystem:
+    dev: "{{ data_volume_device }}"
+    fstype: "{{ data_volume_fstype }}"
+    resizefs: true
+
+# Mount per UUID: il nome del device può cambiare, lo UUID del filesystem no.
+- name: UUID del filesystem
+  ansible.builtin.command: blkid -s UUID -o value {{ data_volume_device }}
+  register: data_volume_uuid
+  changed_when: false
+  # Sola lettura: va eseguito anche con --check, serve al task di mount.
+  check_mode: false
+
+- name: Mount point
+  ansible.builtin.file:
+    path: "{{ data_volume_mount_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Mount del volume (e voce in /etc/fstab)
+  ansible.posix.mount:
+    path: "{{ data_volume_mount_path }}"
+    src: "UUID={{ data_volume_uuid.stdout }}"
+    fstype: "{{ data_volume_fstype }}"
+    opts: "{{ data_volume_mount_opts }}"
+    state: mounted

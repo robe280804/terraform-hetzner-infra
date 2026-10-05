@@ -11,7 +11,8 @@ ansible/
 │   ├── tf_inventory.py       # legge `terraform output ansible_inventory`
 │   └── staging.py            # inventario di staging
 └── roles/
-    └── hardening/            # stesso hardening del cloud-init (sshd, fail2ban, sysctl, ufw, ...)
+    ├── hardening/            # stesso hardening del cloud-init (sshd, fail2ban, sysctl, ufw, ...)
+    └── data_volume/          # mount del volume dati per UUID
 ```
 
 ## Inventario
@@ -81,3 +82,17 @@ La config di sshd viene validata (`sshd -t`) prima di essere scritta: se non è 
 `admin_user`, `admin_ssh_public_keys`, `allowed_ssh_cidrs` e `allowed_http_cidrs` arrivano dall'inventario.
 
 **I default devono restare allineati a quelli del modulo Terraform `server`.** Un valore cambiato da una parte sola crea differenze tra server nuovi (cloud-init) e server esistenti (Ansible).
+
+## Ruolo `data_volume`
+
+Applicato solo ai server con un volume (`volume_size > 0` nei `tfvars`). Il device arriva dall'inventario.
+
+- Monta il volume per **UUID** in `data_volume_mount_path` (default `/srv/data`), con `nofail`, e scrive la voce in `/etc/fstab`.
+- **Non formatta mai** un volume che ha già un filesystem (Hetzner lo crea alla creazione del volume).
+- Se il volume è stato ingrandito in Terraform, allarga il filesystem.
+
+| Variabile | Default | Descrizione |
+|---|---|---|
+| `data_volume_mount_path` | `/srv/data` | Mount point |
+| `data_volume_fstype` | `ext4` | Deve coincidere con `format` del modulo `volume` |
+| `data_volume_mount_opts` | `defaults,nofail,discard` | Opzioni di mount |

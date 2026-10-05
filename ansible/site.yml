@@ -4,3 +4,10 @@
   hosts: all
   roles:
     - hardening
+
+- name: Volume dati
+  hosts: all
+  roles:
+    # Solo sui server con un volume (data_volume_device non null nell'inventario).
+    - role: data_volume
+      when: data_volume_device | default(none) is not none

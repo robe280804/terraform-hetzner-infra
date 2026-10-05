@@ -7,7 +7,7 @@ envs/staging/
 ├── versions.tf          # versioni Terraform e provider
 ├── providers.tf         # provider hcloud (token da variabile)
 ├── variables.tf         # input dell'ambiente
-├── main.tf              # chiavi SSH + chiamata al modulo server
+├── main.tf              # chiavi SSH, rete, server, volumi
 ├── outputs.tf           # IP e ID dei server
 ├── staging.tfvars       # config condivisa (versionata)
 ├── ssh_keys/            # chiavi SSH pubbliche del team (versionate)
@@ -20,9 +20,11 @@ envs/staging/
 | Risorsa | Nome su Hetzner | Quante |
 |---|---|---|
 | `hcloud_ssh_key` | `staging-<persona>` | una per file in `ssh_keys/` |
+| modulo `network` | `staging` | una per ambiente |
 | modulo `server` | `staging-<server>` | una per voce in `servers` |
+| modulo `volume` | `staging-<server>-data` | una per server con `volume_size > 0` |
 
-Il modulo `server` è documentato in [SERVER.md](../modules/SERVER.md).
+Moduli documentati in [SERVER.md](../modules/SERVER.md), [NETWORK.md](../modules/NETWORK.md) e [VOLUME.md](../modules/VOLUME.md).
 
 ## Configurazione
 
@@ -33,6 +35,11 @@ Tutto ciò che definisce l'ambiente è nel repo e cambia **solo via PR**.
 ```hcl
 admin_user = "deploy"
 
+network = {
+  ip_range        = "10.10.0.0/16"
+  subnet_ip_range = "10.10.1.0/24"
+}
+
 servers = {
   nautica = {
     server_type        = "cx23"
@@ -40,6 +47,8 @@ servers = {
     allowed_ssh_cidrs  = ["1.2.3.4/32"]
     allowed_http_cidrs = []
     backups            = false
+    private_ip         = "10.10.1.10"
+    volume_size        = 10
   }
 }
 ```
@@ -52,6 +61,10 @@ servers = {
 | `allowed_http_cidrs` | no | `[]` | IP ammessi su 80/443 |
 | `image` | no | `ubuntu-24.04` | |
 | `backups` | no | `true` | In staging tenerlo `false` (+20% del costo) |
+| `private_ip` | no | assegnato da Hetzner | IP sulla rete privata, dentro `subnet_ip_range` |
+| `volume_size` | no | `0` | GB del volume dati (minimo 10), `0` = nessun volume |
+
+`network.network_zone` è facoltativo (default `eu-central`).
 
 In staging la protezione da cancellazione è sempre spenta.
 
@@ -104,6 +117,8 @@ terraform destroy -var-file=staging.tfvars
 | Dare accesso a una persona | aggiungere `ssh_keys/<nome>.pub` | attiva sui nuovi server; sugli esistenti dopo il playbook Ansible |
 | Togliere accesso | cancellare `ssh_keys/<nome>.pub` | rimossa da Hetzner; dai server esistenti dopo il playbook Ansible |
 | Cambiare taglia | `server_type` | resize del server con riavvio |
+| Aggiungere un volume | `volume_size` da `0` a ≥ 10 | crea e collega il volume; montarlo con il playbook Ansible |
+| Ingrandire il volume | aumentare `volume_size` | resize in-place; il playbook Ansible allarga il filesystem |
 
 Il cloud-init gira solo al primo avvio: sui server già creati aggiunte e revoche di chiavi si applicano con il playbook Ansible (vedi [ANSIBLE.md](../ANSIBLE.md)), che rende `authorized_keys` identico a `ssh_keys/`.
 

@@ -3,6 +3,12 @@
 
 admin_user = "deploy"
 
+# Rete privata: 10.10.0.0/16 staging, 10.20.0.0/16 prod (mai sovrapposte).
+network = {
+  ip_range        = "10.10.0.0/16"
+  subnet_ip_range = "10.10.1.0/24"
+}
+
 servers = {
   nautica = {
     # cx23: il tipo x86 più economico, sufficiente per i test.
@@ -17,5 +23,9 @@ servers = {
     allowed_http_cidrs = []
     # Backup Hetzner (+20% del costo): spenti in staging.
     backups = false
+    # IP fisso sulla rete privata: indirizzo stabile per gli altri server.
+    private_ip = "10.10.1.10"
+    # Volume dati separato (GB, minimo 10): sopravvive alla ricreazione del server.
+    volume_size = 10
   }
 }

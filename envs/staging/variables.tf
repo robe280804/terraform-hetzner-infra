@@ -10,6 +10,15 @@ variable "admin_user" {
   default     = "deploy"
 }
 
+variable "network" {
+  description = "Rete privata dell'ambiente."
+  type = object({
+    ip_range        = string
+    subnet_ip_range = string
+    network_zone    = optional(string, "eu-central")
+  })
+}
+
 variable "servers" {
   description = "Server dell'ambiente: una voce per server (es. nautica, ai)."
   type = map(object({
@@ -19,5 +28,7 @@ variable "servers" {
     allowed_http_cidrs = optional(list(string), [])
     image              = optional(string, "ubuntu-24.04")
     backups            = optional(bool, true)
+    private_ip         = optional(string)    # null = assegnato da Hetzner
+    volume_size        = optional(number, 0) # GB, 0 = nessun volume dati
   }))
 }

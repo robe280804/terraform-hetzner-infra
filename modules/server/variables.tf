@@ -66,6 +66,15 @@ variable "allowed_http_cidrs" {
   }
 }
 
+variable "network" {
+  description = "Rete privata a cui collegare il server: subnet_id dal modulo network, ip opzionale (null = assegnato da Hetzner). null = nessuna rete privata."
+  type = object({
+    subnet_id = string
+    ip        = optional(string)
+  })
+  default = null
+}
+
 variable "allow_icmp" {
   description = "Ammette ping (ICMP) in ingresso."
   type        = bool

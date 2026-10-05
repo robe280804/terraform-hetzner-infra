@@ -22,3 +22,8 @@ output "firewall_id" {
   description = "ID del firewall associato."
   value       = hcloud_firewall.this.id
 }
+
+output "private_ipv4" {
+  description = "IP sulla rete privata (null se il server non è collegato a una rete)."
+  value       = one(hcloud_server_network.this[*].ip)
+}

@@ -1,0 +1,10 @@
+galaxy_info:
+  role_name: data_volume
+  author: devsecops
+  description: Monta il volume dati Hetzner per UUID
+  license: proprietary
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions: [noble]
+dependencies: []

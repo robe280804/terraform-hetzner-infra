@@ -17,6 +17,7 @@ modules/server/
 |---|---|---|
 | `hcloud_firewall` | `<environment>-<name>` | Blocca tutto il traffico in ingresso tranne le regole qui sotto |
 | `hcloud_server` | `<environment>-<name>` | Il server, con firewall, chiavi SSH e cloud-init |
+| `hcloud_server_network` | — | Collegamento alla rete privata, se `network` non è `null`. Separato dal server: collegarlo non ricrea il server |
 
 Label standard su entrambi: `env`, `project`, `managed-by=terraform`.
 
@@ -66,6 +67,7 @@ Verifica dopo il boot: vedi la sezione [Verifiche](../../README.md#verifiche) de
 | `allowed_http_cidrs` | list(string) | `[]` | CIDR ammessi su 80/443 |
 | `allow_icmp` | bool | `true` | Ammette il ping |
 | `backups` | bool | `true` | Backup Hetzner (+20% del costo) |
+| `network` | object | `null` | Rete privata: `{ subnet_id, ip }` (`ip` opzionale). `null` = nessuna rete |
 | `protection` | bool | `false` | `delete_protection` e `rebuild_protection` (usare in prod) |
 | `labels` | map(string) | `{}` | Label extra |
 | `timezone` | string | `UTC` | Timezone del server |
@@ -86,6 +88,7 @@ I CIDR vengono validati: un valore non valido fa fallire il `plan`.
 | `ipv4_address` | IPv4 pubblico |
 | `ipv6_address` | IPv6 pubblico |
 | `firewall_id` | ID del firewall |
+| `private_ipv4` | IP sulla rete privata (`null` senza rete) |
 
 ## Esempio
 

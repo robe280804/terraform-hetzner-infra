@@ -1,0 +1,8 @@
+# data_volume_device arriva dall'inventario (terraform output): se è null il
+# server non ha un volume e il ruolo non viene applicato (vedi site.yml).
+
+data_volume_mount_path: /srv/data
+# Deve coincidere con `format` del modulo Terraform volume.
+data_volume_fstype: ext4
+# nofail: un volume assente non blocca il boot in emergency mode.
+data_volume_mount_opts: defaults,nofail,discard
