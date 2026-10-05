@@ -1,8 +1,65 @@
-## Implementazioni
+# terraform-hetzner-infra
 
-1. Production and Staging enviroment
-2. Server + SSH + Firewall
-3. Hardening del server (cloud-init al primo avvio, Ansible nel tempo: [docs/ANSIBLE.md](docs/ANSIBLE.md))
+Infrastruttura come codice per i server su **Hetzner Cloud**: crea i server di `staging` e `prod` già messi in sicurezza e li mantiene configurati nel tempo.
+
+- **Terraform** crea l'infrastruttura: server, firewall, chiavi SSH, rete privata, volumi dati.
+- **cloud-init** applica l'hardening al primo avvio, così il server è protetto da subito.
+- **Ansible** mantiene la configurazione sui server esistenti (hardening, chiavi SSH, mount dei volumi) senza ricrearli.
+
+Tutto ciò che definisce l'infrastruttura sta nel repo e cambia solo via PR. I segreti (token Hetzner) restano fuori.
+
+## Cosa crea, per ambiente
+
+| Componente | Dettaglio |
+|---|---|
+| Hetzner Project | uno per ambiente (`staging`, `prod`), ciascuno con il proprio token |
+| Server | uno per voce della mappa `servers` nei `tfvars` (es. `nautica`), Ubuntu 24.04 |
+| Firewall | deny-by-default: SSH solo dagli IP ammessi, 80/443 solo se richiesti |
+| Chiavi SSH | una per persona, da `envs/<env>/ssh_keys/*.pub` |
+| Rete privata | una per ambiente (`10.10.0.0/16` staging, `10.20.0.0/16` prod) |
+| Volume dati | opzionale per server, separato dal disco del server: sopravvive alla sua ricreazione |
+| Hardening | utente `deploy` solo con chiave, niente root né password, fail2ban, ufw, sysctl, aggiornamenti di sicurezza automatici |
+
+## Struttura
+
+```
+modules/              # moduli riusabili: server, network, volume
+envs/<env>/           # composizione di un ambiente: <env>.tfvars, ssh_keys/
+ansible/              # inventario (da terraform output) e ruoli: hardening, data_volume
+docs/                 # documentazione di moduli, ambienti e Ansible
+```
+
+## Uso rapido
+
+```bash
+# 1. Infrastruttura (da envs/<env>/)
+export TF_VAR_hcloud_token="..."         # token del Project Hetzner, mai nel repo
+terraform init
+terraform plan  -var-file=<env>.tfvars
+terraform apply -var-file=<env>.tfvars
+
+# 2. Configurazione (da ansible/, in WSL o Linux)
+ansible-playbook -i inventory/<env>.py site.yml --check --diff
+ansible-playbook -i inventory/<env>.py site.yml
+```
+
+Dopo la creazione di un server: [Verifiche](#verifiche).
+
+## Documentazione
+
+| Documento | Contenuto |
+|---|---|
+| [docs/envs/STAGING.md](docs/envs/STAGING.md) | Ambiente staging: configurazione, operazioni comuni, problemi |
+| [docs/modules/SERVER.md](docs/modules/SERVER.md) | Modulo `server`: firewall, cloud-init, input/output |
+| [docs/modules/NETWORK.md](docs/modules/NETWORK.md) | Modulo `network`: rete privata |
+| [docs/modules/VOLUME.md](docs/modules/VOLUME.md) | Modulo `volume`: disco dati |
+| [docs/ANSIBLE.md](docs/ANSIBLE.md) | Inventario, ruoli, prerequisiti e uso di Ansible |
+
+## Prerequisiti
+
+- Terraform ≥ 1.10, `tflint`, `gitleaks`, `pre-commit` (`pre-commit install` dopo il clone).
+- Ansible da WSL o Linux (non gira su Windows): vedi [ANSIBLE.md](docs/ANSIBLE.md).
+- Accesso al Project Hetzner dell'ambiente e la propria chiave pubblica in `envs/<env>/ssh_keys/`.
 
 ## Verifiche
 
