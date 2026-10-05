@@ -2,6 +2,7 @@
 
 1. Production and Staging enviroment
 2. Server + SSH + Firewall
+3. Hardening del server (cloud-init al primo avvio, Ansible nel tempo: [docs/ANSIBLE.md](docs/ANSIBLE.md))
 
 ## Verifiche
 

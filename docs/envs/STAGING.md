@@ -101,11 +101,11 @@ terraform destroy -var-file=staging.tfvars
 |---|---|---|
 | Aggiungere un server | nuova voce in `servers` | crea server + firewall |
 | Aggiornare il mio IP | `allowed_ssh_cidrs` | aggiorna solo il firewall |
-| Dare accesso a una persona | aggiungere `ssh_keys/<nome>.pub` | nuova chiave su Hetzner, attiva sui **nuovi** server |
-| Togliere accesso | cancellare `ssh_keys/<nome>.pub` | chiave rimossa da Hetzner, ma resta sui server esistenti |
+| Dare accesso a una persona | aggiungere `ssh_keys/<nome>.pub` | attiva sui nuovi server; sugli esistenti dopo il playbook Ansible |
+| Togliere accesso | cancellare `ssh_keys/<nome>.pub` | rimossa da Hetzner; dai server esistenti dopo il playbook Ansible |
 | Cambiare taglia | `server_type` | resize del server con riavvio |
 
-Sui server già creati `authorized_keys` non cambia (il cloud-init gira solo al primo avvio): aggiunte e revoche vanno applicate anche con Ansible.
+Il cloud-init gira solo al primo avvio: sui server già creati aggiunte e revoche di chiavi si applicano con il playbook Ansible (vedi [ANSIBLE.md](../ANSIBLE.md)), che rende `authorized_keys` identico a `ssh_keys/`.
 
 ## State
 

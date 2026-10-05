@@ -1,0 +1,6 @@
+# Playbook principale: si applica a tutti i server dell'inventario scelto.
+#   ansible-playbook -i inventory/staging.py site.yml --check --diff
+- name: Hardening dei server
+  hosts: all
+  roles:
+    - hardening

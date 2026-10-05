@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[DEFAULT]
+backend  = systemd
+bantime  = {{ hardening_fail2ban_bantime }}
+findtime = {{ hardening_fail2ban_findtime }}
+maxretry = {{ hardening_fail2ban_maxretry }}
+# Gli IP ammessi su SSH non vengono mai bannati: evita di chiudersi fuori.
+ignoreip = 127.0.0.1/8 ::1 {{ allowed_ssh_cidrs | join(' ') }}
+
+[sshd]
+enabled = true
+port    = ssh
+mode    = aggressive

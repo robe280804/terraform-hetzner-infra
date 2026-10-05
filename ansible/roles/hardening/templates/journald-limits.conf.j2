@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+[Journal]
+SystemMaxUse={{ hardening_journald_max_use }}
+SystemMaxFileSize=100M
+MaxRetentionSec=1month
+Storage=persistent

@@ -1,0 +1,10 @@
+// Managed by Ansible (ruolo hardening): solo aggiornamenti di sicurezza.
+Unattended-Upgrade::Allowed-Origins {
+        "${distro_id}:${distro_codename}-security";
+        "${distro_id}ESMApps:${distro_codename}-apps-security";
+        "${distro_id}ESM:${distro_codename}-infra-security";
+};
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+// Un riavvio si decide, non si subisce. Serve? ls /var/run/reboot-required
+Unattended-Upgrade::Automatic-Reboot "false";

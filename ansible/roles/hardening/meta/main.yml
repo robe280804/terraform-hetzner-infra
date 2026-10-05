@@ -1,0 +1,10 @@
+galaxy_info:
+  role_name: hardening
+  author: devsecops
+  description: Hardening base di Ubuntu 24.04 (stesso contenuto del cloud-init del modulo server)
+  license: proprietary
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions: [noble]
+dependencies: []

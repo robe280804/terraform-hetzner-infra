@@ -1,0 +1,131 @@
+- name: Verifica le variabili dall'inventario
+  ansible.builtin.assert:
+    that:
+      - admin_user is defined
+      - allowed_ssh_cidrs is defined
+      - allowed_http_cidrs is defined
+      - admin_ssh_public_keys | default([]) | length > 0
+    fail_msg: >-
+      Variabili mancanti: usare l'inventario dell'ambiente (inventory/<env>.py).
+      Senza chiavi in envs/<env>/ssh_keys/, con exclusive=true l'utente admin
+      resterebbe senza accesso.
+
+- name: Hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Timezone
+  community.general.timezone:
+    name: "{{ hardening_timezone }}"
+
+- name: Pacchetti di base
+  ansible.builtin.apt:
+    name: [unattended-upgrades, fail2ban, ufw]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# exclusive=true: le chiavi autorizzate sono SOLO quelle in envs/<env>/ssh_keys/.
+# Togliere un file .pub e rilanciare il playbook revoca l'accesso.
+- name: Chiavi SSH autorizzate per l'utente admin
+  ansible.posix.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ admin_ssh_public_keys | join('\n') }}"
+    exclusive: true
+
+- name: SSH hardening
+  ansible.builtin.template:
+    src: sshd-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    # Con un errore il file non viene scritto: sshd resta sulla config valida.
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Restart ssh
+
+- name: Banner legale
+  ansible.builtin.copy:
+    content: "{{ hardening_login_banner | trim }}\n"
+    dest: "{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: [/etc/issue, /etc/issue.net]
+  when: hardening_login_banner | trim | length > 0
+
+- name: Configurazione fail2ban
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban
+
+- name: Servizio fail2ban attivo
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    enabled: true
+    state: started
+
+- name: Hardening kernel (sysctl)
+  ansible.builtin.copy:
+    src: sysctl-hardening.conf
+    dest: /etc/sysctl.d/99-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload sysctl
+
+- name: Directory drop-in journald
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Limiti journald
+  ansible.builtin.template:
+    src: journald-limits.conf.j2
+    dest: /etc/systemd/journald.conf.d/99-limits.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart journald
+
+- name: Aggiornamenti automatici di sicurezza
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/apt/apt.conf.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: [20auto-upgrades, 52unattended-upgrades-local]
+
+# ufw: seconda barriera dietro al firewall Hetzner. Le regole vanno prima di
+# `state: enabled`, altrimenti si chiuderebbe la sessione SSH in corso.
+- name: Firewall ufw - SSH con rate limit
+  community.general.ufw:
+    rule: limit
+    port: "22"
+    proto: tcp
+    comment: SSH (rate limited)
+
+- name: Firewall ufw - HTTP/HTTPS
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: tcp
+    comment: "{{ item.comment }}"
+  loop:
+    - { port: "80", comment: HTTP }
+    - { port: "443", comment: HTTPS }
+  when: allowed_http_cidrs | length > 0
+
+- name: Firewall ufw - policy deny in ingresso e attivazione
+  community.general.ufw:
+    state: enabled
+    default: deny
+    direction: incoming

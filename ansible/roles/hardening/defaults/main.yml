@@ -1,0 +1,27 @@
+# Allineati ai default del modulo Terraform `server` (variables.tf): il
+# cloud-init fa il primo avvio, questo ruolo mantiene lo stato nel tempo.
+# Cambiare un valore solo da una parte crea differenze tra server nuovi
+# (cloud-init) e server esistenti (Ansible).
+
+# admin_user, admin_ssh_public_keys, allowed_ssh_cidrs e allowed_http_cidrs
+# non hanno default: arrivano dall'inventario (terraform output e
+# envs/<env>/ssh_keys/), che è l'unica fonte di verità.
+
+hardening_timezone: UTC
+
+hardening_fail2ban_bantime: 1h
+hardening_fail2ban_findtime: 10m
+hardening_fail2ban_maxretry: 5
+
+hardening_journald_max_use: 500M
+
+# Stringa vuota = nessun banner e nessuna direttiva Banner in sshd.
+hardening_login_banner: |
+  ***************************************************************************
+                            ACCESSO RISERVATO
+
+   Sistema di proprieta privata. L accesso e consentito esclusivamente al
+   personale autorizzato. Ogni attivita su questo sistema e registrata e
+   monitorata. L accesso non autorizzato e vietato e sara perseguito nelle
+   sedi competenti. Se non sei un utente autorizzato, disconnettiti ora.
+  ***************************************************************************
