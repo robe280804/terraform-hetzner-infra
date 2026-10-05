@@ -48,15 +48,7 @@ Eseguito **solo al primo avvio**:
 - **journald** persistente, con tetto `journald_max_use` e retention di un mese;
 - **ufw** come seconda barriera dietro al firewall Hetzner: 22 con rate limit, 80/443 se HTTP è aperto.
 
-Verifica dopo il boot:
-
-```bash
-cat /var/log/cloud-init-hardening.done   # marker di fine bootstrap
-sudo cloud-init status --long            # deve essere "done", senza errori
-sudo sshd -T | grep -Ei 'maxauthtries|permitrootlogin|allowusers'
-sudo fail2ban-client status sshd
-sudo ufw status verbose
-```
+Verifica dopo il boot: vedi la sezione [Verifiche](../../README.md#verifiche) del README.
 
 ## Input
 
