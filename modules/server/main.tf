@@ -64,6 +64,16 @@ resource "hcloud_server" "this" {
     admin_user            = var.admin_user
     admin_ssh_public_keys = var.admin_ssh_public_keys
     open_http             = length(var.allowed_http_cidrs) > 0
+    hostname              = local.full_name
+    timezone              = var.timezone
+    fail2ban_bantime      = var.fail2ban_bantime
+    fail2ban_findtime     = var.fail2ban_findtime
+    fail2ban_maxretry     = var.fail2ban_maxretry
+    fail2ban_ignoreip     = join(" ", var.allowed_ssh_cidrs)
+    journald_max_use      = var.journald_max_use
+    # indent(6, ...) allinea le righe successive alla prima, che nel template
+    # è già rientrata di 6 spazi dentro il blocco `content: |`.
+    login_banner = indent(6, trimspace(var.login_banner))
   })
 
   public_net {

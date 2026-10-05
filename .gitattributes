@@ -1,0 +1,23 @@
+# Fine riga LF forzati, indipendentemente da core.autocrlf.
+# Su Windows, con autocrlf=true, il cloud-init verrebbe salvato in CRLF:
+# Terraform lo inietta così com'è nel user_data e gli script di runcmd
+# arrivano sul server con un \r a fine riga, rompendo il bootstrap.
+
+*                text=auto eol=lf
+
+# File destinati a girare su Linux: LF non negoziabile.
+*.tftpl          text eol=lf
+*.yaml           text eol=lf
+*.yml            text eol=lf
+*.sh             text eol=lf
+*.py             text eol=lf
+*.tf             text eol=lf
+*.tfvars         text eol=lf
+*.hcl            text eol=lf
+*.pub            text eol=lf
+
+# Binari: nessuna conversione.
+*.png            binary
+*.jpg            binary
+*.zip            binary
+*.gz             binary

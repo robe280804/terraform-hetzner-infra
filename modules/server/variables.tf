@@ -89,3 +89,57 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+# ---------------------------------------------------------------------------
+# Hardening (cloud-init)
+# ---------------------------------------------------------------------------
+
+variable "timezone" {
+  description = "Timezone del server. UTC: log correlabili tra server, nessuna ora legale."
+  type        = string
+  default     = "UTC"
+}
+
+variable "fail2ban_bantime" {
+  description = "Durata del ban fail2ban dopo troppi tentativi falliti."
+  type        = string
+  default     = "1h"
+}
+
+variable "fail2ban_findtime" {
+  description = "Finestra entro cui fail2ban conta i tentativi falliti."
+  type        = string
+  default     = "10m"
+}
+
+variable "fail2ban_maxretry" {
+  description = "Tentativi falliti tollerati entro fail2ban_findtime."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.fail2ban_maxretry >= 1 && var.fail2ban_maxretry <= 20
+    error_message = "fail2ban_maxretry deve stare tra 1 e 20."
+  }
+}
+
+variable "journald_max_use" {
+  description = "Spazio massimo su disco per il journal di systemd."
+  type        = string
+  default     = "500M"
+}
+
+variable "login_banner" {
+  description = "Banner legale pre-autenticazione (/etc/issue, /etc/issue.net, Banner di sshd). Stringa vuota = nessun banner. Niente versioni, hostname o marchi: aiutano solo la ricognizione."
+  type        = string
+  default     = <<-EOT
+    ***************************************************************************
+                              ACCESSO RISERVATO
+
+     Sistema di proprieta privata. L accesso e consentito esclusivamente al
+     personale autorizzato. Ogni attivita su questo sistema e registrata e
+     monitorata. L accesso non autorizzato e vietato e sara perseguito nelle
+     sedi competenti. Se non sei un utente autorizzato, disconnettiti ora.
+    ***************************************************************************
+  EOT
+}

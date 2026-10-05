@@ -38,11 +38,25 @@ Lista vuota = porta chiusa.
 
 Eseguito **solo al primo avvio**:
 
+- hostname `<environment>-<name>`, timezone `timezone` (default UTC);
 - utente `admin_user` (default `deploy`) con sudo, accesso **solo con chiave SSH**, password bloccata;
-- `PermitRootLogin no`, `PasswordAuthentication no`, SSH ammesso solo per `admin_user`;
-- `unattended-upgrades` per gli aggiornamenti di sicurezza automatici;
-- `fail2ban` su SSH;
-- `ufw` come seconda barriera dietro al firewall Hetzner (22, e 80/443 se HTTP è aperto).
+- **SSH** (`/etc/ssh/sshd_config.d/10-hardening.conf`): niente root né password, solo `admin_user`, `MaxAuthTries 3`, `LoginGraceTime 30`, forwarding (X11, agent, TCP, tunnel) disattivato, sessioni inattive chiuse dopo 10 minuti. La config viene verificata con `sshd -t` prima del restart: con un errore sshd resta sulla config precedente;
+- **banner legale** pre-autenticazione (`login_banner`) in `/etc/issue`, `/etc/issue.net` e `Banner` di sshd. Stringa vuota = nessun banner;
+- **fail2ban** su SSH (`mode = aggressive`, backend systemd), con `bantime`/`findtime`/`maxretry` parametrizzati. Gli IP in `allowed_ssh_cidrs` non vengono mai bannati;
+- **sysctl** (`/etc/sysctl.d/99-hardening.conf`): anti-spoofing (`rp_filter`), niente redirect né source route, SYN cookies, `kptr_restrict`, `dmesg_restrict`, `ptrace_scope`, niente core dump di binari setuid. L'IP forwarding resta spento: se si installa Docker va riattivato;
+- **unattended-upgrades** solo per gli aggiornamenti di sicurezza, **senza reboot automatico** (controllare `/var/run/reboot-required`);
+- **journald** persistente, con tetto `journald_max_use` e retention di un mese;
+- **ufw** come seconda barriera dietro al firewall Hetzner: 22 con rate limit, 80/443 se HTTP è aperto.
+
+Verifica dopo il boot:
+
+```bash
+cat /var/log/cloud-init-hardening.done   # marker di fine bootstrap
+sudo cloud-init status --long            # deve essere "done", senza errori
+sudo sshd -T | grep -Ei 'maxauthtries|permitrootlogin|allowusers'
+sudo fail2ban-client status sshd
+sudo ufw status verbose
+```
 
 ## Input
 
@@ -62,6 +76,12 @@ Eseguito **solo al primo avvio**:
 | `backups` | bool | `true` | Backup Hetzner (+20% del costo) |
 | `protection` | bool | `false` | `delete_protection` e `rebuild_protection` (usare in prod) |
 | `labels` | map(string) | `{}` | Label extra |
+| `timezone` | string | `UTC` | Timezone del server |
+| `fail2ban_bantime` | string | `1h` | Durata del ban |
+| `fail2ban_findtime` | string | `10m` | Finestra in cui contare i tentativi falliti |
+| `fail2ban_maxretry` | number | `5` | Tentativi tollerati (1-20) |
+| `journald_max_use` | string | `500M` | Spazio massimo del journal |
+| `login_banner` | string | banner "ACCESSO RISERVATO" | Banner legale pre-login, vuoto = nessuno |
 
 I CIDR vengono validati: un valore non valido fa fallire il `plan`.
 
