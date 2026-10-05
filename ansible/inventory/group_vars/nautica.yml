@@ -1,0 +1,3 @@
+# Variabili del server `nautica`, valide in tutti gli ambienti
+# (staging-nautica, prod-nautica). Per un solo ambiente: group_vars/<env>.yml.
+docker_enabled: true

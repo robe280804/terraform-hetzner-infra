@@ -11,3 +11,10 @@
     # Solo sui server con un volume (data_volume_device non null nell'inventario).
     - role: data_volume
       when: data_volume_device | default(none) is not none
+
+- name: Docker
+  hosts: all
+  roles:
+    # Solo sui server con docker_enabled: true (inventory/group_vars/<server>.yml).
+    - role: docker
+      when: docker_enabled | default(false)

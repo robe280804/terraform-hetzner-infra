@@ -4,7 +4,7 @@ Infrastruttura come codice per i server su **Hetzner Cloud**: crea i server di `
 
 - **Terraform** crea l'infrastruttura: server, firewall, chiavi SSH, rete privata, volumi dati.
 - **cloud-init** applica l'hardening al primo avvio, così il server è protetto da subito.
-- **Ansible** mantiene la configurazione sui server esistenti (hardening, chiavi SSH, mount dei volumi) senza ricrearli.
+- **Ansible** mantiene la configurazione sui server esistenti (hardening, chiavi SSH, mount dei volumi, Docker) senza ricrearli.
 
 Tutto ciò che definisce l'infrastruttura sta nel repo e cambia solo via PR. I segreti (token Hetzner) restano fuori.
 
@@ -18,6 +18,7 @@ Tutto ciò che definisce l'infrastruttura sta nel repo e cambia solo via PR. I s
 | Chiavi SSH | una per persona, da `envs/<env>/ssh_keys/*.pub` |
 | Rete privata | una per ambiente (`10.10.0.0/16` staging, `10.20.0.0/16` prod) |
 | Volume dati | opzionale per server, separato dal disco del server: sopravvive alla sua ricreazione |
+| Docker | Docker Engine + Compose dal repository ufficiale, **rootless** (il daemon non è root), sui server che lo richiedono |
 | Hardening | utente `deploy` solo con chiave, niente root né password, fail2ban, ufw, sysctl, aggiornamenti di sicurezza automatici |
 
 ## Struttura
@@ -25,7 +26,7 @@ Tutto ciò che definisce l'infrastruttura sta nel repo e cambia solo via PR. I s
 ```
 modules/              # moduli riusabili: server, network, volume
 envs/<env>/           # composizione di un ambiente: <env>.tfvars, ssh_keys/
-ansible/              # inventario (da terraform output) e ruoli: hardening, data_volume
+ansible/              # inventario (da terraform output) e ruoli: hardening, data_volume, docker
 docs/                 # documentazione di moduli, ambienti e Ansible
 ```
 

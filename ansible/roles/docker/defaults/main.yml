@@ -1,0 +1,48 @@
+# Il ruolo si applica solo ai server con docker_enabled: true
+# (inventory/group_vars/<server>.yml), vedi site.yml.
+docker_enabled: false
+
+docker_repo_url: https://download.docker.com/linux/ubuntu
+# Fingerprint ufficiale della chiave di firma dei pacchetti Docker: se la
+# chiave scaricata non corrisponde, il ruolo si ferma.
+docker_gpg_fingerprint: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+  - docker-ce-rootless-extras
+  # Prerequisiti rootless: newuidmap/newgidmap e sessione dbus utente.
+  - uidmap
+  - dbus-user-session
+  # Permette ad Ansible di eseguire task come utente non privilegiato (become_user).
+  - acl
+
+# Pacchetti non ufficiali in conflitto con quelli Docker.
+docker_conflicting_packages:
+  - docker.io
+  - docker-compose
+  - docker-doc
+  - podman-docker
+  - containerd
+  - runc
+
+# Docker ROOTLESS: il daemon gira come questo utente senza privilegi, non
+# come root. Chi esce da un container si ritrova questo utente, non root.
+# Nessuno è nel gruppo `docker`: si usa `sudo -iu <utente>`.
+docker_rootless_user: app
+
+# IP predefinito per le porte pubblicate (`ports: "8080:80"`): 127.0.0.1,
+# una porta è raggiungibile da fuori solo se lo si chiede esplicitamente.
+docker_default_bind_ip: 127.0.0.1
+
+# Rotazione dei log dei container: senza, i log riempiono il disco.
+docker_log_max_size: 10m
+docker_log_max_file: "3"
+
+# Porta più bassa che un utente non root può aprire. 1024 = default Linux:
+# il daemon rootless non può pubblicare 80/443. Per un reverse proxy
+# impostare 80 (la 22 resta comunque riservata a root).
+docker_unprivileged_port_start: 1024

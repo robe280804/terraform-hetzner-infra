@@ -1,0 +1,10 @@
+galaxy_info:
+  role_name: docker
+  author: devsecops
+  description: Docker Engine e Docker Compose dal repository ufficiale Docker
+  license: proprietary
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions: [noble]
+dependencies: []

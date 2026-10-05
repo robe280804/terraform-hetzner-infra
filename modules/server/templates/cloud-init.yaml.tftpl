@@ -111,8 +111,8 @@ write_files:
       fs.protected_symlinks = 1
       fs.protected_hardlinks = 1
 
-      # IP forwarding lasciato al default (spento). Se in futuro si installa
-      # Docker va riattivato (net.ipv4.ip_forward = 1), o i container perdono la rete.
+      # IP forwarding non impostato: spento di default. Docker gira rootless
+      # (rete in user-mode) e non ne ha bisogno.
 
   - path: /etc/systemd/journald.conf.d/99-limits.conf
     permissions: "0644"

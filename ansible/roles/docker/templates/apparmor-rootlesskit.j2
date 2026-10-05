@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+# Ubuntu 24.04 vieta gli user namespace non privilegiati salvo profilo
+# AppArmor esplicito: rootlesskit ne ha bisogno per Docker rootless.
+abi <abi/4.0>,
+include <tunables/global>
+
+/usr/bin/rootlesskit flags=(unconfined) {
+  userns,
+
+  include if exists <local/usr.bin.rootlesskit>
+}

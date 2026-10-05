@@ -1,0 +1,202 @@
+# Docker dal repository UFFICIALE, in modalità ROOTLESS: il daemon gira come
+# utente senza privilegi (docker_rootless_user), non come root.
+
+# --- Repository ------------------------------------------------------------
+
+- name: Rimozione pacchetti Docker non ufficiali
+  ansible.builtin.apt:
+    name: "{{ docker_conflicting_packages }}"
+    state: absent
+
+- name: Directory dei keyring apt
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Chiave GPG del repository Docker
+  ansible.builtin.get_url:
+    url: "{{ docker_repo_url }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: "0644"
+  register: docker_gpg_key
+
+# La chiave arriva via HTTPS, ma la si confronta comunque con il fingerprint
+# ufficiale: una chiave diversa vorrebbe dire pacchetti firmati da altri.
+- name: Fingerprint della chiave scaricata
+  ansible.builtin.command: gpg --show-keys --with-colons /etc/apt/keyrings/docker.asc
+  register: docker_gpg_keys
+  changed_when: false
+  check_mode: false
+  # Con --check su un server nuovo la chiave non è ancora stata scaricata.
+  when: not (ansible_check_mode and docker_gpg_key is changed)
+
+- name: Verifica del fingerprint
+  ansible.builtin.assert:
+    that: ("fpr:::::::::" ~ docker_gpg_fingerprint ~ ":") in docker_gpg_keys.stdout
+    fail_msg: La chiave GPG di Docker non corrisponde al fingerprint atteso ({{ docker_gpg_fingerprint }}).
+  when: docker_gpg_keys is not skipped
+
+- name: Repository apt Docker
+  ansible.builtin.template:
+    src: docker.sources.j2
+    dest: /etc/apt/sources.list.d/docker.sources
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    docker_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']] }}"
+  notify: Update apt cache
+
+# Il nuovo repository va letto subito, non a fine play: serve all'installazione.
+- name: Aggiornamento indice apt se il repository è cambiato
+  ansible.builtin.meta: flush_handlers
+
+# --- Prerequisiti di sistema -----------------------------------------------
+
+# Ubuntu 24.04 vieta gli user namespace non privilegiati salvo profilo
+# AppArmor esplicito. force: false, per non sovrascrivere un profilo
+# eventualmente fornito dal pacchetto.
+- name: Profilo AppArmor per rootlesskit
+  ansible.builtin.template:
+    src: apparmor-rootlesskit.j2
+    dest: /etc/apparmor.d/usr.bin.rootlesskit
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  notify: Reload apparmor rootlesskit
+
+# Delega dei controller cgroup alle sessioni utente: senza, i limiti di
+# risorse dei container (memoria, CPU) non funzionano in rootless.
+- name: Directory drop-in user@.service
+  ansible.builtin.file:
+    path: /etc/systemd/system/user@.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Delega cgroup alle sessioni utente
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      Delegate=cpu cpuset io memory pids
+    dest: /etc/systemd/system/user@.service.d/delegate.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Porta più bassa apribile senza root
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible (ruolo docker)
+      net.ipv4.ip_unprivileged_port_start = {{ docker_unprivileged_port_start }}
+    dest: /etc/sysctl.d/90-docker-rootless.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload sysctl
+
+- name: Installazione Docker Engine, Compose e componenti rootless
+  ansible.builtin.apt:
+    name: "{{ docker_packages }}"
+    state: present
+
+- name: Applicazione immediata di AppArmor, systemd e sysctl
+  ansible.builtin.meta: flush_handlers
+
+# Il daemon di sistema (root) non deve girare: fermato e mascherato, così
+# nessun aggiornamento del pacchetto lo riavvia.
+- name: Daemon Docker di sistema (root) disattivato
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    masked: true
+    state: stopped
+  loop: [docker.service, docker.socket]
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Socket del daemon di sistema rimosso
+  ansible.builtin.file:
+    path: /var/run/docker.sock
+    state: absent
+
+# --- Utente rootless ---------------------------------------------------------
+
+# Utente normale (non di sistema): useradd gli assegna i subuid/subgid.
+# Password bloccata e fuori da AllowUsers di sshd: non accede via SSH,
+# ci si arriva solo con `sudo -iu`.
+- name: Utente per Docker rootless
+  ansible.builtin.user:
+    name: "{{ docker_rootless_user }}"
+    shell: /bin/bash
+    create_home: true
+    password_lock: true
+  register: docker_rootless_account
+
+# Con --check su un server nuovo l'utente non esiste ancora (niente uid):
+# la configurazione per utente viene saltata.
+- name: Configurazione rootless
+  when: docker_rootless_account.uid is defined
+  block:
+    - name: Subuid e subgid dell'utente
+      ansible.builtin.command: grep -q "^{{ docker_rootless_user }}:" /etc/subuid /etc/subgid
+      changed_when: false
+      check_mode: false
+
+    # Linger: il servizio utente (e i container) parte al boot, senza login.
+    - name: Linger per l'utente
+      ansible.builtin.command: loginctl enable-linger {{ docker_rootless_user }}
+      args:
+        creates: /var/lib/systemd/linger/{{ docker_rootless_user }}
+
+    - name: Attesa della sessione systemd dell'utente
+      ansible.builtin.wait_for:
+        path: /run/user/{{ docker_rootless_account.uid }}/bus
+        timeout: 30
+      when: not ansible_check_mode
+
+    - name: Directory config Docker dell'utente
+      ansible.builtin.file:
+        path: "{{ docker_rootless_account.home }}/.config/docker"
+        state: directory
+        owner: "{{ docker_rootless_user }}"
+        group: "{{ docker_rootless_user }}"
+        mode: "0700"
+
+    - name: Configurazione del daemon rootless (daemon.json)
+      ansible.builtin.template:
+        src: daemon.json.j2
+        dest: "{{ docker_rootless_account.home }}/.config/docker/daemon.json"
+        owner: "{{ docker_rootless_user }}"
+        group: "{{ docker_rootless_user }}"
+        mode: "0600"
+      notify: Restart docker rootless
+
+    # Crea il servizio systemd utente e il context CLI "rootless".
+    - name: Setup Docker rootless
+      ansible.builtin.command: dockerd-rootless-setuptool.sh install
+      args:
+        creates: "{{ docker_rootless_account.home }}/.config/systemd/user/docker.service"
+      become: true
+      become_user: "{{ docker_rootless_user }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ docker_rootless_account.uid }}"
+
+    - name: Servizio Docker rootless attivo all'avvio
+      ansible.builtin.systemd_service:
+        name: docker
+        scope: user
+        enabled: true
+        state: started
+      become: true
+      become_user: "{{ docker_rootless_user }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ docker_rootless_account.uid }}"
+      ignore_errors: "{{ ansible_check_mode }}"
